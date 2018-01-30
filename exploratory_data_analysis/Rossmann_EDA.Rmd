@@ -1,0 +1,158 @@
+---
+title: "Exploratory data analysis for Rossmann Store Sales"
+author: "Juan L. Kehoe"
+date: "10/12/2015"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Basic information 
+Competition link: [https://www.kaggle.com/c/rossmann-store-sales](https://www.kaggle.com/c/rossmann-store-sales)    
+Data download link: [https://www.kaggle.com/thie1e/exploratory-analysis-rossmann/data](https://www.kaggle.com/thie1e/exploratory-analysis-rossmann/data)   
+
+## Purpose of the project
+Predict 6 weeks of daily sales for 1,115 stores located across Germany.
+
+## Data provided:
+You are provided with historical sales data for 1,115 Rossmann stores. The task is to forecast the "Sales" column for the test set. Note that some stores in the dataset were temporarily closed for refurbishment.    
+
+### Files
+- train.csv - historical data including Sales  
+- test.csv - historical data excluding Sales   
+- store.csv - supplemental information about the stores  
+
+### Data fields
+Most of the fields are self-explanatory. The following are descriptions for those that aren't.  
+
+- Id - an Id that represents a (Store, Date) duple within the test set  
+- Store - a unique Id for each store  
+- Sales - the turnover for any given day (this is what you are predicting)  
+- Customers - the number of customers on a given day  
+- Open - an indicator for whether the store was open: 0 = closed, 1 = open  
+- StateHoliday - indicates a state holiday. Normally all stores, with few exceptions, are closed on state holidays. Note that all schools are closed on public holidays and weekends. a = public holiday, b = Easter holiday, c = Christmas, 0 = None  
+- SchoolHoliday - indicates if the (Store, Date) was affected by the closure of public schools  
+- StoreType - differentiates between 4 different store models: a, b, c, d  
+- Assortment - describes an assortment level: a = basic, b = extra, c = extended  
+- CompetitionDistance - distance in meters to the nearest competitor store  
+- CompetitionOpenSince[Month/Year] - gives the approximate year and month of the time the nearest competitor was opened  
+- Promo - indicates whether a store is running a promo on that day  
+- Promo2 - Promo2 is a continuing and consecutive promotion for some stores: 0 = store is not participating, 1 = store is participating  
+- Promo2Since[Year/Week] - describes the year and calendar week when the store started participating in Promo2
+- PromoInterval - describes the consecutive intervals Promo2 is started, naming the months the promotion is started anew. E.g. "Feb,May,Aug,Nov" means each round starts in February, May, August, November of any given year for that store  
+
+
+# Exploratory data analysis
+## read data and check details
+```{r}
+# read data
+train <- read.csv("train.csv")
+test <- read.csv("test.csv")
+store <- read.csv("store.csv")
+# check data dimensions
+dim(train)
+dim(test)
+dim(store)
+# check variable details
+str(train)
+str(test)
+str(store)
+# check the first 6 rows of the data
+head(train)
+head(test)
+head(store)
+# check the last 6 rows of the data
+tail(train)
+tail(test)
+tail(store)
+```
+
+## merge data and transform data type
+```{r}
+# merge data
+train <- merge(train,store,by="Store")
+test <- merge(test,store,by="Store")
+# transform the data type
+# train
+train$Store <- as.factor(train$Store)
+train$DayOfWeek <- as.factor(train$DayOfWeek)
+train$Open <- as.factor(train$Open)
+train$Promo <- as.factor(train$Promo)
+train$StateHoliday <- as.factor(train$StateHoliday)
+train$SchoolHoliday <- as.factor(train$SchoolHoliday)
+train$Assortment <- as.factor(train$Assortment)
+train$StoreType <- as.factor(train$StoreType)
+train$Promo2 <- as.factor(train$Promo2)
+train$PromoInterval <- as.factor(train$PromoInterval)
+train$Date <- as.Date(train$Date)
+
+# test
+test$Store <- as.factor(test$Store)
+test$DayOfWeek <- as.factor(test$DayOfWeek)
+test$Open <- as.factor(test$Open)
+test$Promo <- as.factor(test$Promo)
+test$StateHoliday <- as.factor(test$StateHoliday)
+test$SchoolHoliday <- as.factor(test$SchoolHoliday)
+test$Assortment <- as.factor(test$Assortment)
+test$StoreType <- as.factor(test$StoreType)
+test$Promo2 <- as.factor(test$Promo2)
+test$PromoInterval <- as.factor(test$PromoInterval)
+test$Date <- as.Date(test$Date)
+
+# extract the month information
+train$Month <- as.factor(format(train$Date, "%m"))
+test$Month <- as.factor(format(test$Date, "%m"))
+# extract year information
+train$Year <- as.factor(format(train$Date, "%Y"))
+test$Year <- as.factor(format(test$Date, "%Y"))
+# extract day information
+train$Day <- as.factor(format(train$Date, "%d"))
+test$Day <- as.factor(format(test$Date, "%d"))
+
+```
+## save preprocessed data
+```{r}
+save(train, test, file = "Rossmann.RData")
+```
+
+## explore data  
+### data summaries
+```{r}
+# summary of data
+summary(train)
+summary(test)
+```
+
+### Visulize data in train
+```{r}
+# load package
+library(dplyr)
+library(ggplot2)
+# average sales in all stores
+train %>% 
+  group_by(Store) %>% summarize(AverageSales=mean(Sales)) %>%
+  ggplot(aes(x=Store, y=AverageSales)) + geom_point()
+# average sales for different store types
+train %>% 
+  group_by(StoreType, Store) %>% summarize(AverageSales=mean(Sales)) %>%
+  ggplot(aes(x=Store, y=AverageSales)) + geom_point(aes(colour=StoreType))
+# average sales for different assortment types
+train %>% 
+  group_by(Assortment, Store) %>% summarize(AverageSales=mean(Sales)) %>%
+  ggplot(aes(x=Store, y=AverageSales)) + geom_point(aes(colour=Assortment))
+
+# take store number 262 as an example to view the sales 
+# different school holidays
+train %>% subset(Store=="262") %>% ggplot(aes(y=Sales, x=Date)) + geom_point(aes(colour=SchoolHoliday))
+# different state holidays
+train %>% subset(Store=="262") %>% ggplot(aes(y=Sales, x=Date)) + geom_point(aes(colour=StateHoliday))
+# different promotion status
+train %>% subset(Store=="262") %>% ggplot(aes(y=Sales, x=Date)) + geom_point(aes(colour=Promo))
+# different day of week
+train %>% subset(Store=="262") %>% ggplot(aes(y=Sales, x=Date)) + geom_point(aes(colour=DayOfWeek))
+# different month
+train %>% subset(Store=="262") %>% ggplot(aes(y=Sales, x=Date)) + geom_point(aes(colour=Month))
+```
+
