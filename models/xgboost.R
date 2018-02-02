@@ -62,7 +62,7 @@ xgb <- xgb.train(   params              = param,
                     maximize            = FALSE,
                     feval=RMPSE)
 # predicting in test data
-predictions <- predict(clf, data.matrix(test[,features]))
+predictions <- predict(xgb, data.matrix(test[,features]))
 # return the predictions to the original scale of the Sales data
 pred <- expm1(predictions[,1])
 # generate submission data
